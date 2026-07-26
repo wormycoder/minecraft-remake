@@ -12,15 +12,22 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-family: Arial, sans-serif;
             overflow: hidden;
             background: #000;
         }
 
         canvas {
             display: block;
-            width: 100%;
-            height: 100vh;
+        }
+
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 20px;
         }
 
         #ui {
@@ -30,45 +37,25 @@
             color: #fff;
             font-size: 14px;
             z-index: 10;
-            background: rgba(0, 0, 0, 0.5);
+            background: rgba(0, 0, 0, 0.7);
             padding: 15px 20px;
             border-radius: 4px;
-            font-family: 'Courier New', monospace;
         }
 
         #crosshair {
             position: absolute;
             top: 50%;
             left: 50%;
-            transform: translate(-50%, -50%);
             width: 20px;
             height: 20px;
-            border: 2px solid rgba(255, 255, 255, 0.5);
+            transform: translate(-50%, -50%);
             z-index: 5;
             pointer-events: none;
         }
 
-        #crosshair::before,
-        #crosshair::after {
-            content: '';
-            position: absolute;
-            background: rgba(255, 255, 255, 0.5);
-        }
-
-        #crosshair::before {
-            width: 2px;
-            height: 6px;
-            top: -8px;
-            left: 50%;
-            transform: translateX(-50%);
-        }
-
-        #crosshair::after {
-            width: 2px;
-            height: 6px;
-            bottom: -8px;
-            left: 50%;
-            transform: translateX(-50%);
+        #crosshair svg {
+            width: 100%;
+            height: 100%;
         }
 
         #controls {
@@ -77,15 +64,9 @@
             left: 20px;
             color: #aaa;
             font-size: 12px;
-            background: rgba(0, 0, 0, 0.5);
+            background: rgba(0, 0, 0, 0.7);
             padding: 15px 20px;
             border-radius: 4px;
-            font-family: 'Courier New', monospace;
-            max-width: 250px;
-        }
-
-        #controls div {
-            margin: 5px 0;
         }
 
         #blockSelector {
@@ -104,361 +85,325 @@
             border-radius: 4px;
             cursor: pointer;
             transition: all 0.2s;
-            background-size: 100%;
         }
 
         .blockButton:hover {
             border-color: #fff;
-            transform: scale(1.1);
         }
 
         .blockButton.active {
             border-color: #0f0;
             box-shadow: 0 0 10px #0f0;
         }
-
-        .blockButton[data-type="dirt"] {
-            background-color: #8B7355;
-        }
-
-        .blockButton[data-type="grass"] {
-            background-color: #7EC850;
-        }
-
-        .blockButton[data-type="stone"] {
-            background-color: #888;
-        }
-
-        .blockButton[data-type="wood"] {
-            background-color: #8B4513;
-        }
     </style>
 </head>
 <body>
-    <div id="crosshair"></div>
-    <div id="ui">
-        <div>Position: <span id="pos">0, 0, 0</span></div>
-        <div>Selected: <span id="selected">Grass</span></div>
-        <div>FPS: <span id="fps">60</span></div>
+    <div id="loading">Loading Three.js...</div>
+    <div id="crosshair">
+        <svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="10" cy="10" r="1" fill="white" opacity="0.7"/>
+            <line x1="10" y1="4" x2="10" y2="6" stroke="white" stroke-width="0.5" opacity="0.7"/>
+            <line x1="10" y1="14" x2="10" y2="16" stroke="white" stroke-width="0.5" opacity="0.7"/>
+            <line x1="4" y1="10" x2="6" y2="10" stroke="white" stroke-width="0.5" opacity="0.7"/>
+            <line x1="14" y1="10" x2="16" y2="10" stroke="white" stroke-width="0.5" opacity="0.7"/>
+        </svg>
     </div>
-    <div id="controls">
+    <div id="ui" style="display:none;">
+        <div>X: <span id="posX">0</span></div>
+        <div>Y: <span id="posY">0</span></div>
+        <div>Z: <span id="posZ">0</span></div>
+        <div>FPS: <span id="fps">0</span></div>
+    </div>
+    <div id="controls" style="display:none;">
         <div><strong>WASD</strong> - Move</div>
         <div><strong>Space</strong> - Jump</div>
-        <div><strong>Shift</strong> - Sprint</div>
-        <div><strong>Click</strong> - Break/Place</div>
-        <div><strong>1-4</strong> - Select Block</div>
-        <div><strong>Mouse</strong> - Look</div>
+        <div><strong>Click</strong> - Break Block</div>
+        <div><strong>Right Click</strong> - Place Block</div>
     </div>
-    <div id="blockSelector">
-        <button class="blockButton active" data-type="grass" title="Grass"></button>
-        <button class="blockButton" data-type="dirt" title="Dirt"></button>
-        <button class="blockButton" data-type="stone" title="Stone"></button>
-        <button class="blockButton" data-type="wood" title="Wood"></button>
+    <div id="blockSelector" style="display:none;">
+        <button class="blockButton active" data-type="grass" style="background-color: #7EC850;" title="Grass"></button>
+        <button class="blockButton" data-type="dirt" style="background-color: #8B7355;" title="Dirt"></button>
+        <button class="blockButton" data-type="stone" style="background-color: #888;" title="Stone"></button>
+        <button class="blockButton" data-type="wood" style="background-color: #8B4513;" title="Wood"></button>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
-        // Game state
-        const gameState = {
-            selectedBlock: 'grass',
-            blocks: new Map(),
-            camera: null,
-            scene: null,
-            renderer: null,
-            velocity: { x: 0, y: 0, z: 0 },
-            isGrounded: false,
-            keys: {},
-            fpsCounter: { frames: 0, lastTime: Date.now(), fps: 60 }
+        let scene, camera, renderer, controls;
+        let blocks = new Map();
+        let selectedBlock = 'grass';
+        let keys = {};
+        
+        const BLOCK_SIZE = 1;
+        const COLORS = {
+            grass: 0x7EC850,
+            dirt: 0x8B7355,
+            stone: 0x888888,
+            wood: 0x8B4513
         };
 
-        // Initialize scene
         function init() {
-            // Scene setup
-            gameState.scene = new THREE.Scene();
-            gameState.scene.background = new THREE.Color(0x87CEEB);
-            gameState.scene.fog = new THREE.Fog(0x87CEEB, 200, 500);
+            // Scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x87CEEB);
+            scene.fog = new THREE.Fog(0x87CEEB, 200, 500);
 
             // Camera
-            gameState.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            gameState.camera.position.set(0, 65, 0);
+            camera = new THREE.PerspectiveCamera(
+                75,
+                window.innerWidth / window.innerHeight,
+                0.1,
+                1000
+            );
+            camera.position.set(0, 70, 0);
 
             // Renderer
-            gameState.renderer = new THREE.WebGLRenderer({ antialias: true });
-            gameState.renderer.setSize(window.innerWidth, window.innerHeight);
-            gameState.renderer.shadowMap.enabled = true;
-            document.body.appendChild(gameState.renderer.domElement);
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.shadowMap.enabled = true;
+            document.body.appendChild(renderer.domElement);
 
             // Lighting
             const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
-            gameState.scene.add(ambientLight);
+            scene.add(ambientLight);
 
-            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-            directionalLight.position.set(100, 100, 100);
-            directionalLight.castShadow = true;
-            directionalLight.shadow.camera.left = -300;
-            directionalLight.shadow.camera.right = 300;
-            directionalLight.shadow.camera.top = 300;
-            directionalLight.shadow.camera.bottom = -300;
-            directionalLight.shadow.mapSize.width = 2048;
-            directionalLight.shadow.mapSize.height = 2048;
-            gameState.scene.add(directionalLight);
+            const sunLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            sunLight.position.set(100, 100, 50);
+            sunLight.castShadow = true;
+            sunLight.shadow.camera.left = -300;
+            sunLight.shadow.camera.right = 300;
+            sunLight.shadow.camera.top = 300;
+            sunLight.shadow.camera.bottom = -300;
+            scene.add(sunLight);
 
-            // Generate initial terrain
-            generateTerrain();
-
-            // Event listeners
+            // Events
             document.addEventListener('keydown', onKeyDown);
             document.addEventListener('keyup', onKeyUp);
-            document.addEventListener('click', onMouseClick);
+            document.addEventListener('mousedown', onMouseDown);
+            document.addEventListener('contextmenu', (e) => e.preventDefault());
             window.addEventListener('resize', onWindowResize);
-            
-            // Block selector
-            document.querySelectorAll('.blockButton').forEach(btn => {
-                btn.addEventListener('click', (e) => selectBlock(e.target.dataset.type));
-            });
-
-            // Lock pointer on click
-            gameState.renderer.domElement.addEventListener('click', () => {
-                gameState.renderer.domElement.requestPointerLock?.();
-            });
-
-            // Mouse move for camera
             document.addEventListener('mousemove', onMouseMove);
 
-            // Start animation loop
+            // Block selector
+            document.querySelectorAll('.blockButton').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    document.querySelectorAll('.blockButton').forEach(b => b.classList.remove('active'));
+                    e.target.classList.add('active');
+                    selectedBlock = e.target.dataset.type;
+                });
+            });
+
+            // Show UI
+            document.getElementById('ui').style.display = 'block';
+            document.getElementById('controls').style.display = 'block';
+            document.getElementById('blockSelector').style.display = 'flex';
+            document.getElementById('loading').style.display = 'none';
+
+            // Lock pointer on click (moved here so renderer exists first)
+            renderer.domElement.addEventListener('click', () => {
+                renderer.domElement.requestPointerLock = 
+                    renderer.domElement.requestPointerLock || 
+                    renderer.domElement.mozRequestPointerLock;
+                renderer.domElement.requestPointerLock();
+            });
+
+            generateTerrain();
             animate();
         }
 
-        // Perlin-like noise for terrain generation (simplified)
-        function getTerrainHeight(x, z) {
-            const scale1 = 0.01;
-            const scale2 = 0.05;
-            const n1 = Math.sin(x * scale1 + z * scale1) * Math.cos(x * scale1 * 0.5);
-            const n2 = Math.sin(x * scale2) * Math.cos(z * scale2);
-            return Math.floor((n1 + n2) * 30 + 64);
-        }
-
-        // Generate terrain chunks
         function generateTerrain() {
-            const chunkSize = 16;
-            const renderDistance = 3;
+            const range = 40;
+            
+            for (let x = -range; x < range; x += 2) {
+                for (let z = -range; z < range; z += 2) {
+                    const height = Math.floor(
+                        Math.sin(x * 0.05) * 10 + 
+                        Math.cos(z * 0.05) * 10 + 
+                        Math.sin(x * 0.02 + z * 0.02) * 5 + 
+                        50
+                    );
 
-            for (let cx = -renderDistance; cx <= renderDistance; cx++) {
-                for (let cz = -renderDistance; cz <= renderDistance; cz++) {
-                    const startX = cx * chunkSize;
-                    const startZ = cz * chunkSize;
-
-                    for (let x = startX; x < startX + chunkSize; x++) {
-                        for (let z = startZ; z < startZ + chunkSize; z++) {
-                            const height = getTerrainHeight(x, z);
-                            
-                            // Place blocks from bedrock to surface
-                            for (let y = 0; y <= height; y++) {
-                                let blockType = 'stone';
-                                if (y === height) blockType = 'grass';
-                                else if (y > height - 4) blockType = 'dirt';
-                                
-                                addBlockToScene(x, y, z, blockType);
-                            }
-                        }
+                    for (let y = 0; y <= height; y++) {
+                        let blockType = 'stone';
+                        if (y === height) blockType = 'grass';
+                        else if (y > height - 3) blockType = 'dirt';
+                        
+                        addBlock(x, y, z, blockType);
                     }
                 }
             }
         }
 
-        // Add block to scene
-        function addBlockToScene(x, y, z, type) {
+        function addBlock(x, y, z, type) {
             const key = `${x},${y},${z}`;
-            
-            if (gameState.blocks.has(key)) return;
+            if (blocks.has(key)) return;
 
-            const geometry = new THREE.BoxGeometry(1, 1, 1);
-            const colors = {
-                grass: 0x7EC850,
-                dirt: 0x8B7355,
-                stone: 0x888888,
-                wood: 0x8B4513
-            };
-            
-            const material = new THREE.MeshLambertMaterial({ color: colors[type] });
+            const geometry = new THREE.BoxGeometry(BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE);
+            const material = new THREE.MeshPhongMaterial({ color: COLORS[type] });
             const mesh = new THREE.Mesh(geometry, material);
+            
             mesh.position.set(x, y, z);
             mesh.castShadow = true;
             mesh.receiveShadow = true;
             
-            gameState.scene.add(mesh);
-            gameState.blocks.set(key, { mesh, type, x, y, z });
+            scene.add(mesh);
+            blocks.set(key, { mesh, type, x, y, z });
         }
 
-        // Remove block
         function removeBlock(x, y, z) {
             const key = `${x},${y},${z}`;
-            if (gameState.blocks.has(key)) {
-                const { mesh } = gameState.blocks.get(key);
-                gameState.scene.remove(mesh);
-                gameState.blocks.delete(key);
+            const block = blocks.get(key);
+            if (block) {
+                scene.remove(block.mesh);
+                blocks.delete(key);
             }
         }
 
-        // Raycasting for block selection
-        function getRaycastTarget() {
+        function raycast() {
             const raycaster = new THREE.Raycaster();
-            raycaster.setFromCamera(new THREE.Vector2(0, 0), gameState.camera);
+            raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
             
-            const blockMeshes = Array.from(gameState.blocks.values()).map(b => b.mesh);
-            const intersects = raycaster.intersectObjects(blockMeshes);
+            const meshes = Array.from(blocks.values()).map(b => b.mesh);
+            const intersects = raycaster.intersectObjects(meshes);
             
-            if (intersects.length > 0) {
-                return intersects[0];
-            }
-            return null;
+            return intersects.length > 0 ? intersects[0] : null;
         }
 
-        // Mouse click handler
-        function onMouseClick(event) {
-            if (event.button === 0) {
-                // Left click - break block
-                const intersection = getRaycastTarget();
-                if (intersection) {
-                    const pos = intersection.object.position;
-                    removeBlock(pos.x, pos.y, pos.z);
-                }
-            } else if (event.button === 2) {
-                // Right click - place block
-                const intersection = getRaycastTarget();
-                if (intersection) {
-                    const pos = intersection.point;
-                    const normal = intersection.face.normal;
-                    const newPos = {
-                        x: Math.round(pos.x + normal.x * 0.5),
-                        y: Math.round(pos.y + normal.y * 0.5),
-                        z: Math.round(pos.z + normal.z * 0.5)
-                    };
-                    addBlockToScene(newPos.x, newPos.y, newPos.z, gameState.selectedBlock);
-                }
+        let velocity = new THREE.Vector3();
+        let isGrounded = false;
+        let yaw = 0, pitch = 0;
+        let lastFrameTime = Date.now();
+        let frameCount = 0;
+
+        function update() {
+            const now = Date.now();
+            const deltaTime = Math.min((now - lastFrameTime) / 1000, 0.1);
+            lastFrameTime = now;
+
+            frameCount++;
+            if (frameCount % 30 === 0) {
+                document.getElementById('fps').textContent = Math.round(1 / deltaTime);
             }
+
+            // Movement
+            const moveDir = new THREE.Vector3();
+            const moveSpeed = 0.2;
+
+            if (keys['w'] || keys['W']) moveDir.z -= 1;
+            if (keys['s'] || keys['S']) moveDir.z += 1;
+            if (keys['a'] || keys['A']) moveDir.x -= 1;
+            if (keys['d'] || keys['D']) moveDir.x += 1;
+
+            if (moveDir.length() > 0) {
+                moveDir.normalize();
+                
+                const forward = new THREE.Vector3(0, 0, -1)
+                    .applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
+                const right = new THREE.Vector3(1, 0, 0)
+                    .applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
+
+                velocity.x = (forward.x * moveDir.z + right.x * moveDir.x) * moveSpeed;
+                velocity.z = (forward.z * moveDir.z + right.z * moveDir.x) * moveSpeed;
+            } else {
+                velocity.x *= 0.85;
+                velocity.z *= 0.85;
+            }
+
+            // Jumping
+            if ((keys[' '] || keys['Spacebar']) && isGrounded) {
+                velocity.y = 0.35;
+                isGrounded = false;
+            }
+
+            // Gravity
+            velocity.y -= 0.02;
+            velocity.y = Math.max(velocity.y, -0.5);
+
+            // Apply velocity
+            camera.position.add(velocity);
+
+            // Ground collision
+            const playerY = camera.position.y - 1.6; // Eye height
+            const blockKey = `${Math.round(camera.position.x)},${Math.floor(playerY)},${Math.round(camera.position.z)}`;
+            
+            isGrounded = blocks.has(blockKey);
+            
+            if (isGrounded) {
+                const block = blocks.get(blockKey);
+                velocity.y = 0;
+                camera.position.y = Math.max(camera.position.y, block.y + 2.6);
+            }
+
+            // Update UI
+            document.getElementById('posX').textContent = Math.round(camera.position.x);
+            document.getElementById('posY').textContent = Math.round(camera.position.y);
+            document.getElementById('posZ').textContent = Math.round(camera.position.z);
+
+            // Update camera rotation
+            camera.rotation.order = 'YXZ';
+            camera.rotation.y = yaw;
+            camera.rotation.x = pitch;
         }
 
-        // Keyboard handlers
         function onKeyDown(e) {
-            gameState.keys[e.key.toLowerCase()] = true;
-            
-            // Block selection with number keys
-            const blockMap = { '1': 'grass', '2': 'dirt', '3': 'stone', '4': 'wood' };
-            if (blockMap[e.key]) {
-                selectBlock(blockMap[e.key]);
-            }
+            keys[e.key] = true;
         }
 
         function onKeyUp(e) {
-            gameState.keys[e.key.toLowerCase()] = false;
+            keys[e.key] = false;
         }
 
-        function selectBlock(type) {
-            gameState.selectedBlock = type;
-            document.querySelectorAll('.blockButton').forEach(btn => {
-                btn.classList.toggle('active', btn.dataset.type === type);
-            });
-            document.getElementById('selected').textContent = type.charAt(0).toUpperCase() + type.slice(1);
-        }
+        function onMouseMove(e) {
+            if (document.pointerLockElement !== renderer.domElement) return;
 
-        // Mouse movement
-        let pitch = 0, yaw = 0;
-        function onMouseMove(event) {
-            if (document.pointerLockElement !== gameState.renderer.domElement) return;
-            
             const sensitivity = 0.003;
-            yaw -= event.movementX * sensitivity;
-            pitch -= event.movementY * sensitivity;
+            yaw -= e.movementX * sensitivity;
+            pitch -= e.movementY * sensitivity;
             pitch = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, pitch));
-            
-            gameState.camera.rotation.order = 'YXZ';
-            gameState.camera.rotation.y = yaw;
-            gameState.camera.rotation.x = pitch;
         }
 
-        // Window resize
+        function onMouseDown(e) {
+            const intersection = raycast();
+            if (!intersection) return;
+
+            const pos = intersection.object.position;
+            const x = pos.x;
+            const y = pos.y;
+            const z = pos.z;
+
+            if (e.button === 0) {
+                // Left click - break
+                removeBlock(x, y, z);
+            } else if (e.button === 2) {
+                // Right click - place
+                const normal = intersection.face.normal;
+                const newX = Math.round(intersection.point.x + normal.x * 0.5);
+                const newY = Math.round(intersection.point.y + normal.y * 0.5);
+                const newZ = Math.round(intersection.point.z + normal.z * 0.5);
+                addBlock(newX, newY, newZ, selectedBlock);
+            }
+        }
+
         function onWindowResize() {
-            gameState.camera.aspect = window.innerWidth / window.innerHeight;
-            gameState.camera.updateProjectionMatrix();
-            gameState.renderer.setSize(window.innerWidth, window.innerHeight);
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
         }
 
-        // Physics & movement
-        function updatePlayer() {
-            const speed = gameState.keys['shift'] ? 0.3 : 0.15;
-            const direction = new THREE.Vector3();
-            
-            if (gameState.keys['w']) direction.z -= 1;
-            if (gameState.keys['s']) direction.z += 1;
-            if (gameState.keys['a']) direction.x -= 1;
-            if (gameState.keys['d']) direction.x += 1;
-            
-            if (direction.length() > 0) {
-                direction.normalize();
-                const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
-                const right = new THREE.Vector3(1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
-                
-                gameState.velocity.x = (forward.x * direction.z + right.x * direction.x) * speed;
-                gameState.velocity.z = (forward.z * direction.z + right.z * direction.x) * speed;
-            } else {
-                gameState.velocity.x *= 0.9;
-                gameState.velocity.z *= 0.9;
-            }
-            
-            // Jumping
-            if (gameState.keys[' '] && gameState.isGrounded) {
-                gameState.velocity.y = 0.3;
-                gameState.isGrounded = false;
-            }
-            
-            // Gravity
-            gameState.velocity.y -= 0.015;
-            gameState.velocity.y = Math.max(gameState.velocity.y, -0.5);
-            
-            // Update position
-            gameState.camera.position.x += gameState.velocity.x;
-            gameState.camera.position.y += gameState.velocity.y;
-            gameState.camera.position.z += gameState.velocity.z;
-            
-            // Ground collision
-            const pos = gameState.camera.position;
-            const blockBelow = gameState.blocks.get(`${Math.round(pos.x)},${Math.floor(pos.y - 1.5)},${Math.round(pos.z)}`);
-            
-            gameState.isGrounded = !!blockBelow;
-            if (blockBelow) {
-                gameState.velocity.y = 0;
-                gameState.camera.position.y = Math.max(pos.y, Math.floor(pos.y - 1.5) + 2);
-            }
-            
-            // Update UI
-            document.getElementById('pos').textContent = 
-                `${Math.round(pos.x)}, ${Math.round(pos.y)}, ${Math.round(pos.z)}`;
-        }
-
-        // Animation loop
         function animate() {
             requestAnimationFrame(animate);
-            
-            updatePlayer();
-            gameState.renderer.render(gameState.scene, gameState.camera);
-            
-            // FPS counter
-            gameState.fpsCounter.frames++;
-            const now = Date.now();
-            if (now - gameState.fpsCounter.lastTime > 1000) {
-                gameState.fpsCounter.fps = gameState.fpsCounter.frames;
-                gameState.fpsCounter.frames = 0;
-                gameState.fpsCounter.lastTime = now;
-                document.getElementById('fps').textContent = gameState.fpsCounter.fps;
-            }
+            update();
+            renderer.render(scene, camera);
         }
 
-        // Prevent context menu on right click
-        document.addEventListener('contextmenu', e => e.preventDefault());
+        // Start when page loads
+        window.addEventListener('load', init);
 
-        // Initialize game
-        init();
+        // Fallback init
+        setTimeout(() => {
+            if (!scene) init();
+        }, 2000);
     </script>
 </body>
 </html>
