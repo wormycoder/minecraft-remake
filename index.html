@@ -57,7 +57,7 @@
             width: 50px; height: 50px;
             border: 2px solid #555; border-radius: 4px;
             cursor: pointer; transition: all 0.2s;
-            background-size: cover; background-color: #666;
+            background-color: #666;
         }
         .blockButton:hover { border-color: #fff; }
         .blockButton.active { border-color: #0f0; box-shadow: 0 0 10px #0f0; }
@@ -79,6 +79,7 @@
         <div>X: <span id="posX">0</span></div>
         <div>Y: <span id="posY">0</span></div>
         <div>Z: <span id="posZ">0</span></div>
+        <div>Chunk: <span id="chunkPos">0,0</span></div>
         <div>FPS: <span id="fps">0</span></div>
     </div>
     <div id="controls">
@@ -95,7 +96,6 @@
         <button class="blockButton" data-type="wood" style="background-color:#8B4513;" title="Wood"></button>
     </div>
 
-    <!-- On-screen error catcher so problems are visible without devtools -->
     <script>
         window.addEventListener('error', function (e) {
             var box = document.getElementById('errorBox');
@@ -108,50 +108,119 @@
 
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/utils/BufferGeometryUtils.js"></script>
 
     <script>
     (function () {
         'use strict';
 
         // ---- Embedded Blockbench GLTF exports (grass + stone) ----
-        // These are full, self-contained glTF JSON (geometry + texture baked in as base64),
-        // so no external file paths are needed and this works when opened directly as a file.
         var GRASS_GLTF = {"asset":{"version":"2.0","generator":"Blockbench 5.1.6 glTF exporter"},"scenes":[{"nodes":[0],"name":"blockbench_export"}],"scene":0,"nodes":[{"name":"cube","mesh":0}],"bufferViews":[{"buffer":0,"byteOffset":0,"byteLength":288,"target":34962,"byteStride":12},{"buffer":0,"byteOffset":288,"byteLength":288,"target":34962,"byteStride":12},{"buffer":0,"byteOffset":576,"byteLength":192,"target":34962,"byteStride":8},{"buffer":0,"byteOffset":768,"byteLength":72,"target":34963}],"buffers":[{"byteLength":840,"uri":"data:application/octet-stream;base64,AACAPwAAgD8AAIA/AACAPwAAgD8AAAAAAACAPwAAAAAAAIA/AACAPwAAAAAAAAAAAAAAAAAAgD8AAAAAAAAAAAAAgD8AAIA/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAIA/AAAAAAAAgD8AAAAAAACAPwAAgD8AAAAAAAAAAAAAgD8AAIA/AACAPwAAgD8AAIA/AAAAAAAAAAAAAIA/AACAPwAAAAAAAIA/AAAAAAAAAAAAAAAAAACAPwAAAAAAAAAAAAAAAAAAgD8AAIA/AACAPwAAgD8AAIA/AAAAAAAAAAAAAIA/AACAPwAAAAAAAIA/AACAPwAAgD8AAAAAAAAAAAAAgD8AAAAAAACAPwAAAAAAAAAAAAAAAAAAAAAAAAAAAACAPwAAAAAAAAAAAACAPwAAAAAAAAAAAACAPwAAAAAAAAAAAACAPwAAAAAAAAAAAACAvwAAAAAAAAAAAACAvwAAAAAAAAAAAACAvwAAAAAAAAAAAACAvwAAAAAAAAAAAAAAAAAAgD8AAAAAAAAAAAAAgD8AAAAAAAAAAAAAgD8AAAAAAAAAAAAAgD8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIC/AAAAAAAAAAAAAIC/AAAAAAAAAAAAAIC/AAAAAAAAAAAAAIC/AAAAAAAAgD4AAIA+AACAPgAAAAAAAAA/AACAPgAAAD8AAIA+AACAPgAAAD8AAIA+AACAPgAAAD8AAAA/AAAAPwAAgD4AAEA/AAAAAAAAQD8AAIA+AAAAPwAAAAAAAAA/AABAPwAAAAAAAAA/AAAAAAAAQD8AAIA+AAAAPwAAgD4AAIA+AAAAAAAAAD8AAAAAAACAPgAAgD4AAAA/AACAPgAAAAAAAAAAAACAPgAAAAAAAAAAAACAPgAAgD4AAIA+AAACAAEAAgADAAEABAAGAAUABgAHAAUACAAKAAkACgALAAkADAAOAA0ADgAPAA0AEAASABEAEgATABEAFAAWABUAFgAXABUA"}],"accessors":[{"bufferView":0,"componentType":5126,"count":24,"max":[1,1,1],"min":[0,0,0],"type":"VEC3"},{"bufferView":1,"componentType":5126,"count":24,"max":[1,1,1],"min":[-1,-1,-1],"type":"VEC3"},{"bufferView":2,"componentType":5126,"count":24,"max":[0.75,0.75],"min":[0,0],"type":"VEC2"},{"bufferView":3,"componentType":5123,"count":36,"max":[23],"min":[0],"type":"SCALAR"}],"materials":[{"pbrMetallicRoughness":{"metallicFactor":0,"roughnessFactor":1,"baseColorTexture":{"index":0}},"alphaMode":"MASK","alphaCutoff":0.05}],"textures":[{"sampler":0,"source":0,"name":"grass block"}],"samplers":[{"magFilter":9728,"minFilter":9728,"wrapS":33071,"wrapT":33071}],"images":[{"mimeType":"image/png","uri":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAABTklEQVR4AeyYMQrCQBREk7US7DyA17HzDjaeycY72HkdD2AnWElkF75FmhA+f/4kjLAuQXdnduYpJGV/2Q2Z43zcDp7ROV/FuX7xy1sAp+e3HSRrbuJJb8UObfroa9PNmhsBVRx98LFe9ZAx/gFkiDNoKgCGFjI9iIDM9Bm0RQBDC5keREBm+gzaIoChBaSHsVa5HzZd5rg9Pr1njA8091o/gZqY3ZllzdVD1tDzAEve2s+6Nl30rP8AdOJseiKArRG0HxGATpxNTwSwNYL2IwLQibPprZ6AqcDdzwM89/J17ZTB6M9FQHTC7PuLAPaGov2JgOiE2fcXAewNRfsTAdEJs+8vAtgbivYnAqITZt9/dQTMDby8ru/eM+YKsn1fBLA1gvYjAtCJs+mJALZG0H5EADpxNj0RwNYI2o8IQCfOpicC2BpB+1k8Ad7AfgAAAP//WAsmaQAAAAZJREFUAwCyinCQMouZmwAAAABJRU5ErkJggg=="}],"meshes":[{"primitives":[{"mode":4,"attributes":{"POSITION":0,"NORMAL":1,"TEXCOORD_0":2},"indices":3,"material":0}]}]};
         var STONE_GLTF = {"asset":{"version":"2.0","generator":"Blockbench 5.1.6 glTF exporter"},"scenes":[{"nodes":[0],"name":"blockbench_export"}],"scene":0,"nodes":[{"name":"cube","mesh":0}],"bufferViews":[{"buffer":0,"byteOffset":0,"byteLength":288,"target":34962,"byteStride":12},{"buffer":0,"byteOffset":288,"byteLength":288,"target":34962,"byteStride":12},{"buffer":0,"byteOffset":576,"byteLength":192,"target":34962,"byteStride":8},{"buffer":0,"byteOffset":768,"byteLength":72,"target":34963}],"buffers":[{"byteLength":840,"uri":"data:application/octet-stream;base64,AACAPwAAiD8AAIA/AACAPwAAiD8AAAAAAACAPwAAAAAAAIA/AACAPwAAAAAAAAAAAAAAAAAAiD8AAAAAAAAAAAAAiD8AAIA/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAIA/AAAAAAAAiD8AAAAAAACAPwAAiD8AAAAAAAAAAAAAiD8AAIA/AACAPwAAiD8AAIA/AAAAAAAAAAAAAIA/AACAPwAAAAAAAIA/AAAAAAAAAAAAAAAAAACAPwAAAAAAAAAAAAAAAAAAiD8AAIA/AACAPwAAiD8AAIA/AAAAAAAAAAAAAIA/AACAPwAAAAAAAIA/AACAPwAAiD8AAAAAAAAAAAAAiD8AAAAAAACAPwAAAAAAAAAAAAAAAAAAAAAAAAAAAACAPwAAAAAAAAAAAACAPwAAAAAAAAAAAACAPwAAAAAAAAAAAACAPwAAAAAAAAAAAACAvwAAAAAAAAAAAACAvwAAAAAAAAAAAACAvwAAAAAAAAAAAACAvwAAAAAAAAAAAAAAAAAAgD8AAAAAAAAAAAAAgD8AAAAAAAAAAAAAgD8AAAAAAAAAAAAAgD8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIC/AAAAAAAAAAAAAIC/AAAAAAAAAAAAAIC/AAAAAAAAAAAAAIC/AACAPgAAAAAAAAA/AAAAAAAAgD4AAIg+AAAAPwAAiD4AAIA+AACIPgAAAD8AAIg+AACAPgAACD8AAAA/AAAIPwAAQD8AAIA+AAAAPwAAgD4AAEA/AAAAAAAAAD8AAAAAAABAPwAAgD4AAAA/AACAPgAAQD8AAAA/AAAAPwAAAD8AAAAAAACIPgAAgD4AAIg+AAAAAAAACD8AAIA+AAAIPwAAAAAAAAAAAACAPgAAAAAAAAAAAACIPgAAgD4AAIg+AAACAAEAAgADAAEABAAGAAUABgAHAAUACAAKAAkACgALAAkADAAOAA0ADgAPAA0AEAASABEAEgATABEAFAAWABUAFgAXABUA"}],"accessors":[{"bufferView":0,"componentType":5126,"count":24,"max":[1,1.0625,1],"min":[0,0,0],"type":"VEC3"},{"bufferView":1,"componentType":5126,"count":24,"max":[1,1,1],"min":[-1,-1,-1],"type":"VEC3"},{"bufferView":2,"componentType":5126,"count":24,"max":[0.75,0.53125],"min":[0,0],"type":"VEC2"},{"bufferView":3,"componentType":5123,"count":36,"max":[23],"min":[0],"type":"SCALAR"}],"materials":[{"pbrMetallicRoughness":{"metallicFactor":0,"roughnessFactor":1,"baseColorTexture":{"index":0}},"alphaMode":"MASK","alphaCutoff":0.05}],"textures":[{"sampler":0,"source":0,"name":"stone block"}],"samplers":[{"magFilter":9728,"minFilter":9728,"wrapS":33071,"wrapT":33071}],"images":[{"mimeType":"image/png","uri":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAACx0lEQVR4AeyY243rMAxEc1NCykoNqTNlpYW7OAZoEFqRNiXKGxsKMJDEx5AcKT++P5/P/0fh9Xpt1iJGsKevW+fv3pkfTn88HjeNkuDz+dwExJX+7POhAshges0eKMr3SwBU92AVqOVYsXvtCLU3tjXulwAU9aAH1UVrOdqfsad2Bo/mWASAGIiDPZCzXvWg2t67L+uVZ+G37OKProsADEUi5IAzwJYJuEEr54ieFgFoCHIB5xEQfkQALTXgaMmzclYBrIARdoYAHjf+VpE83tLnCkADHkoyOZMj+29fXQG4BQ/WcOQggsCK+wa7K0BPg4ggQIgerpG5wwTQTSOEPu/d1/KyxbxDCPY2dbW4u6jsiYDPghaEGH0etc+ss/wFtkTAb6EckuYEpc87w+/5xUcckHN0LeMXATBCCti3gnyNVp4j81YBjiz6TbVWAXi2exojDuyJ7Ykpa3Au0cMvuasAGHQBzjXIE6/5MmzSQ8kldfVaxrScVwE0MfsImTS9tW5xkk9twVZ8hn8VoIdMGt5aqcGQGtgE5Mv+qDVFgEizDKkRyR0Rawqgb6m2H9EMdUbwepymAPqWanuPNOpjcEAdKxe/5euxmwK0kpaNchZYnAwOLD/5lq/Xni5A2RCDCVoHkfySO+OcLgDNWoPiy2g6kyNdAJr7xkHpq4b1ewC3BmpB2C3U4qM2i9uyR/m9+OV7ADcmqAWLr7bW4qO2Gq9ni/J78UP+AlKwdoPiO2rdqpMqgAwsRWu3SIz4Wd/v978ewNGDVAFkYK8hYjz/0b57j/oZuUcPXNZLfQEl+RnOU4Az3NLIHucLGKnuGbjnCzjDLY3scb6AkeqegXu+gDPc0sge5wsYqe5fcEdrzhcQVexq8fMFXO1Go/PMFxBV7Grx8wVc7Uaj88wXEFXsavHzBVztRqPzzBcQVexq8fMFnP1Ge/v/AQAA//+S8ogHAAAABklEQVQDADqzf58m+9gOAAAAAElFTkSuQmCC"}],"meshes":[{"primitives":[{"mode":4,"attributes":{"POSITION":0,"NORMAL":1,"TEXCOORD_0":2},"indices":3,"material":0}]}]};
 
+        // ===================== CONFIG =====================
+        var CHUNK_SIZE = 16;
+        var RENDER_DISTANCE = 4;   // chunks radius to keep loaded
+        var UNLOAD_DISTANCE = 6;   // chunks radius before unloading
+        var REACH = 6;             // block interaction distance
+
         var scene, camera, renderer;
-        var blocks = new Map();
-        var selectedBlock = 'grass';
         var keys = {};
-        var velocity = new THREE.Vector3();
+        var velocity = new (window.THREE ? THREE.Vector3 : Object)();
         var isGrounded = false;
         var yaw = 0, pitch = 0;
         var lastFrameTime = Date.now();
         var frameCount = 0;
-
-        var COLORS = { dirt: 0x8B7355, wood: 0x8B4513 };
-        var templates = {}; // filled with {geometry, material} for grass/stone once loaded
+        var selectedBlock = 'grass';
+        var templates = {};       // {grass:{geometry,material}, stone:{...}, dirt:{...}, wood:{...}}
+        var chunks = new Map();   // key "cx,cz" -> {cx,cz, exposed: Map(key->type), meshes:{type:Mesh}}
+        var overrides = new Map(); // key "x,y,z" -> 'empty' or type  (only player-modified cells)
+        var lastPlayerChunkKey = null;
 
         function showFatal(msg) {
             var box = document.getElementById('errorBox');
             box.style.display = 'block';
             box.textContent = 'Error: ' + msg;
-            document.getElementById('loading').textContent = 'Something went wrong — see error above.';
+            var loading = document.getElementById('loading');
+            if (loading) loading.textContent = 'Something went wrong — see error above.';
         }
 
+        // ===================== PERLIN NOISE =====================
+        var perm = new Uint8Array(512);
+        (function seedPerlin() {
+            var p = new Uint8Array(256);
+            for (var i = 0; i < 256; i++) p[i] = i;
+            var seed = 98765;
+            function rand() { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; }
+            for (var i2 = 255; i2 > 0; i2--) {
+                var j = Math.floor(rand() * (i2 + 1));
+                var tmp = p[i2]; p[i2] = p[j]; p[j] = tmp;
+            }
+            for (var i3 = 0; i3 < 512; i3++) perm[i3] = p[i3 & 255];
+        })();
+        function fade(t) { return t * t * t * (t * (t * 6 - 15) + 10); }
+        function lerp(t, a, b) { return a + t * (b - a); }
+        function grad(hash, x, y) {
+            var h = hash & 3;
+            var u = h < 2 ? x : y;
+            var v = h < 2 ? y : x;
+            return ((h & 1) ? -u : u) + ((h & 2) ? -2 * v : 2 * v);
+        }
+        function perlin2(x, y) {
+            var X = Math.floor(x) & 255, Y = Math.floor(y) & 255;
+            x -= Math.floor(x); y -= Math.floor(y);
+            var u = fade(x), v = fade(y);
+            var aa = perm[perm[X] + Y], ab = perm[perm[X] + Y + 1];
+            var ba = perm[perm[X + 1] + Y], bb = perm[perm[X + 1] + Y + 1];
+            return lerp(v, lerp(u, grad(aa, x, y), grad(ba, x - 1, y)),
+                           lerp(u, grad(ab, x, y - 1), grad(bb, x - 1, y - 1)));
+        }
+        function fbm(x, y, octaves) {
+            var total = 0, amp = 1, freq = 1, maxAmp = 0;
+            for (var i = 0; i < octaves; i++) {
+                total += perlin2(x * freq, y * freq) * amp;
+                maxAmp += amp;
+                amp *= 0.5;
+                freq *= 2;
+            }
+            return total / maxAmp; // roughly -1..1
+        }
+        function terrainHeight(x, z) {
+            var e = fbm(x * 0.015, z * 0.015, 4);
+            return Math.floor(40 + e * 18);
+        }
+
+        // ===================== VOXEL DATA =====================
+        function keyOf(x, y, z) { return x + ',' + y + ',' + z; }
+        function baseBlockAt(x, y, z) {
+            var h = terrainHeight(x, z);
+            if (y > h) return 'empty';
+            if (y === h) return 'grass';
+            return 'stone'; // no dirt layer underground, just stone
+        }
+        function blockAt(x, y, z) {
+            var k = keyOf(x, y, z);
+            if (overrides.has(k)) return overrides.get(k);
+            return baseBlockAt(x, y, z);
+        }
+        function isSolid(x, y, z) { return blockAt(x, y, z) !== 'empty'; }
+        function isExposed(x, y, z) {
+            return !isSolid(x + 1, y, z) || !isSolid(x - 1, y, z) ||
+                   !isSolid(x, y + 1, z) || !isSolid(x, y - 1, z) ||
+                   !isSolid(x, y, z + 1) || !isSolid(x, y, z - 1);
+        }
+        function chunkKeyFor(x, z) {
+            return Math.floor(x / CHUNK_SIZE) + ',' + Math.floor(z / CHUNK_SIZE);
+        }
+
+        // ===================== MODEL LOADING =====================
         function loadTemplate(gltfJson, name, callback) {
             try {
                 var loader = new THREE.GLTFLoader();
                 loader.parse(JSON.stringify(gltfJson), '', function (gltf) {
                     var found = null;
-                    gltf.scene.traverse(function (child) {
-                        if (!found && child.isMesh) found = child;
-                    });
-                    if (!found) {
-                        showFatal('No mesh found inside ' + name + ' model.');
-                        callback(null);
-                        return;
-                    }
+                    gltf.scene.traverse(function (child) { if (!found && child.isMesh) found = child; });
+                    if (!found) { showFatal('No mesh found inside ' + name + ' model.'); callback(null); return; }
                     templates[name] = { geometry: found.geometry, material: found.material };
                     callback(true);
                 }, function (err) {
@@ -164,40 +233,215 @@
             }
         }
 
+        function makeSolidColorTemplate(color) {
+            var geometry = new THREE.BoxGeometry(1, 1, 1);
+            geometry.translate(0.5, 0.5, 0.5); // span 0..1 to match gltf block convention
+            var material = new THREE.MeshPhongMaterial({ color: color });
+            return { geometry: geometry, material: material };
+        }
+
+        // ===================== CHUNK MESHING =====================
+        function buildChunkMeshes(chunk) {
+            var types = ['grass', 'stone', 'dirt', 'wood'];
+            for (var t = 0; t < types.length; t++) {
+                var type = types[t];
+                // remove old mesh for this type
+                if (chunk.meshes[type]) {
+                    scene.remove(chunk.meshes[type]);
+                    chunk.meshes[type].geometry.dispose();
+                    chunk.meshes[type] = null;
+                }
+                var positions = [];
+                chunk.exposed.forEach(function (blockType, key) {
+                    if (blockType === type) positions.push(key);
+                });
+                if (positions.length === 0) continue;
+
+                var template = templates[type];
+                if (!template) continue;
+
+                var geoms = [];
+                for (var i = 0; i < positions.length; i++) {
+                    var parts = positions[i].split(',');
+                    var gx = parseInt(parts[0], 10), gy = parseInt(parts[1], 10), gz = parseInt(parts[2], 10);
+                    var g = template.geometry.clone();
+                    g.translate(gx, gy, gz);
+                    geoms.push(g);
+                }
+                var merged = THREE.BufferGeometryUtils.mergeBufferGeometries(geoms, false);
+                for (var d = 0; d < geoms.length; d++) geoms[d].dispose();
+
+                var mesh = new THREE.Mesh(merged, template.material);
+                mesh.castShadow = true;
+                mesh.receiveShadow = true;
+                scene.add(mesh);
+                chunk.meshes[type] = mesh;
+            }
+        }
+
+        function generateChunk(cx, cz) {
+            var key = cx + ',' + cz;
+            if (chunks.has(key)) return;
+            var chunk = { cx: cx, cz: cz, exposed: new Map(), meshes: {} };
+            chunks.set(key, chunk);
+
+            var startX = cx * CHUNK_SIZE, startZ = cz * CHUNK_SIZE;
+            for (var x = startX; x < startX + CHUNK_SIZE; x++) {
+                for (var z = startZ; z < startZ + CHUNK_SIZE; z++) {
+                    var h = terrainHeight(x, z);
+                    var minNeighborH = Math.min(
+                        terrainHeight(x + 1, z), terrainHeight(x - 1, z),
+                        terrainHeight(x, z + 1), terrainHeight(x, z - 1),
+                        h
+                    );
+                    for (var y = Math.max(minNeighborH, 0); y <= h; y++) {
+                        if (!isSolid(x, y, z)) continue;
+                        if (!isExposed(x, y, z)) continue;
+                        chunk.exposed.set(keyOf(x, y, z), blockAt(x, y, z));
+                    }
+                }
+            }
+            buildChunkMeshes(chunk);
+        }
+
+        function unloadChunk(key) {
+            var chunk = chunks.get(key);
+            if (!chunk) return;
+            ['grass', 'stone', 'dirt', 'wood'].forEach(function (type) {
+                if (chunk.meshes[type]) {
+                    scene.remove(chunk.meshes[type]);
+                    chunk.meshes[type].geometry.dispose();
+                }
+            });
+            chunks.delete(key);
+        }
+
+        function updateChunksAroundPlayer() {
+            var pcx = Math.floor(camera.position.x / CHUNK_SIZE);
+            var pcz = Math.floor(camera.position.z / CHUNK_SIZE);
+            var currentKey = pcx + ',' + pcz;
+            if (currentKey === lastPlayerChunkKey) return;
+            lastPlayerChunkKey = currentKey;
+
+            for (var dx = -RENDER_DISTANCE; dx <= RENDER_DISTANCE; dx++) {
+                for (var dz = -RENDER_DISTANCE; dz <= RENDER_DISTANCE; dz++) {
+                    generateChunk(pcx + dx, pcz + dz);
+                }
+            }
+            var toRemove = [];
+            chunks.forEach(function (chunk, key) {
+                var dist = Math.max(Math.abs(chunk.cx - pcx), Math.abs(chunk.cz - pcz));
+                if (dist > UNLOAD_DISTANCE) toRemove.push(key);
+            });
+            toRemove.forEach(unloadChunk);
+
+            document.getElementById('chunkPos').textContent = pcx + ',' + pcz;
+        }
+
+        // ===================== BLOCK EDITING =====================
+        function refreshCell(x, y, z, affectedChunks) {
+            var ck = chunkKeyFor(x, z);
+            var chunk = chunks.get(ck);
+            if (!chunk) return;
+            var key = keyOf(x, y, z);
+            if (isSolid(x, y, z) && isExposed(x, y, z)) {
+                chunk.exposed.set(key, blockAt(x, y, z));
+            } else {
+                chunk.exposed.delete(key);
+            }
+            affectedChunks.add(ck);
+        }
+
+        function updateBlockAndNeighbors(x, y, z) {
+            var affected = new Set();
+            refreshCell(x, y, z, affected);
+            refreshCell(x + 1, y, z, affected);
+            refreshCell(x - 1, y, z, affected);
+            refreshCell(x, y + 1, z, affected);
+            refreshCell(x, y - 1, z, affected);
+            refreshCell(x, y, z + 1, affected);
+            refreshCell(x, y, z - 1, affected);
+            affected.forEach(function (ck) {
+                var chunk = chunks.get(ck);
+                if (chunk) buildChunkMeshes(chunk);
+            });
+        }
+
+        function breakBlock(x, y, z) {
+            overrides.set(keyOf(x, y, z), 'empty');
+            updateBlockAndNeighbors(x, y, z);
+        }
+
+        function placeBlock(x, y, z, type) {
+            if (isSolid(x, y, z)) return;
+            overrides.set(keyOf(x, y, z), type);
+            updateBlockAndNeighbors(x, y, z);
+        }
+
+        // ===================== VOXEL RAYCAST (DDA) =====================
+        function voxelRaycast(origin, direction, maxDistance) {
+            var x = Math.floor(origin.x), y = Math.floor(origin.y), z = Math.floor(origin.z);
+            var stepX = direction.x > 0 ? 1 : -1;
+            var stepY = direction.y > 0 ? 1 : -1;
+            var stepZ = direction.z > 0 ? 1 : -1;
+            var tDeltaX = direction.x !== 0 ? Math.abs(1 / direction.x) : Infinity;
+            var tDeltaY = direction.y !== 0 ? Math.abs(1 / direction.y) : Infinity;
+            var tDeltaZ = direction.z !== 0 ? Math.abs(1 / direction.z) : Infinity;
+            function frac(v) { return v - Math.floor(v); }
+            var tMaxX = direction.x !== 0 ? (direction.x > 0 ? (1 - frac(origin.x)) : frac(origin.x)) * tDeltaX : Infinity;
+            var tMaxY = direction.y !== 0 ? (direction.y > 0 ? (1 - frac(origin.y)) : frac(origin.y)) * tDeltaY : Infinity;
+            var tMaxZ = direction.z !== 0 ? (direction.z > 0 ? (1 - frac(origin.z)) : frac(origin.z)) * tDeltaZ : Infinity;
+
+            var normal = { x: 0, y: 0, z: 0 };
+            var dist = 0;
+            for (var i = 0; i < 200 && dist < maxDistance; i++) {
+                if (isSolid(x, y, z)) {
+                    return {
+                        x: x, y: y, z: z,
+                        placeX: x + normal.x, placeY: y + normal.y, placeZ: z + normal.z
+                    };
+                }
+                if (tMaxX < tMaxY && tMaxX < tMaxZ) {
+                    x += stepX; dist = tMaxX; tMaxX += tDeltaX; normal = { x: -stepX, y: 0, z: 0 };
+                } else if (tMaxY < tMaxZ) {
+                    y += stepY; dist = tMaxY; tMaxY += tDeltaY; normal = { x: 0, y: -stepY, z: 0 };
+                } else {
+                    z += stepZ; dist = tMaxZ; tMaxZ += tDeltaZ; normal = { x: 0, y: 0, z: -stepZ };
+                }
+            }
+            return null;
+        }
+
+        // ===================== INIT =====================
         function init() {
             try {
-                if (typeof THREE === 'undefined') {
-                    showFatal('Three.js failed to load (check internet connection).');
-                    return;
-                }
-                if (typeof THREE.GLTFLoader === 'undefined') {
-                    showFatal('GLTFLoader failed to load (check internet connection).');
-                    return;
-                }
+                if (typeof THREE === 'undefined') { showFatal('Three.js failed to load (check internet connection).'); return; }
+                if (typeof THREE.GLTFLoader === 'undefined') { showFatal('GLTFLoader failed to load.'); return; }
+                if (typeof THREE.BufferGeometryUtils === 'undefined') { showFatal('BufferGeometryUtils failed to load.'); return; }
 
                 scene = new THREE.Scene();
                 scene.background = new THREE.Color(0x87CEEB);
-                scene.fog = new THREE.Fog(0x87CEEB, 200, 500);
+                scene.fog = new THREE.Fog(0x87CEEB, 120, 300);
 
                 camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
                 camera.position.set(0, 70, 0);
+                velocity = new THREE.Vector3();
 
                 renderer = new THREE.WebGLRenderer({ antialias: true });
                 renderer.setSize(window.innerWidth, window.innerHeight);
-                renderer.setPixelRatio(window.devicePixelRatio);
+                renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
                 renderer.shadowMap.enabled = true;
                 document.body.appendChild(renderer.domElement);
 
                 var ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
                 scene.add(ambientLight);
-
                 var sunLight = new THREE.DirectionalLight(0xffffff, 0.8);
                 sunLight.position.set(100, 100, 50);
                 sunLight.castShadow = true;
                 scene.add(sunLight);
 
-                document.addEventListener('keydown', onKeyDown);
-                document.addEventListener('keyup', onKeyUp);
+                document.addEventListener('keydown', function (e) { keys[e.key.toLowerCase()] = true; });
+                document.addEventListener('keyup', function (e) { keys[e.key.toLowerCase()] = false; });
                 document.addEventListener('mousedown', onMouseDown);
                 document.addEventListener('contextmenu', function (e) { e.preventDefault(); });
                 window.addEventListener('resize', onWindowResize);
@@ -217,15 +461,13 @@
                     if (request) request.call(el);
                 });
 
-                // Load both custom block models, then start the world
+                templates.dirt = makeSolidColorTemplate(0x8B7355);
+                templates.wood = makeSolidColorTemplate(0x8B4513);
+
                 var remaining = 2;
-                function onOneLoaded() {
-                    remaining--;
-                    if (remaining === 0) startWorld();
-                }
+                function onOneLoaded() { remaining--; if (remaining === 0) startWorld(); }
                 loadTemplate(GRASS_GLTF, 'grass', onOneLoaded);
                 loadTemplate(STONE_GLTF, 'stone', onOneLoaded);
-
             } catch (e) {
                 showFatal('Init failed: ' + e.message);
             }
@@ -237,74 +479,15 @@
             document.getElementById('blockSelector').style.display = 'flex';
             document.getElementById('loading').style.display = 'none';
 
-            generateTerrain();
+            // Place player above terrain at spawn
+            var spawnH = terrainHeight(0, 0);
+            camera.position.set(0.5, spawnH + 3, 0.5);
+
+            updateChunksAroundPlayer();
             animate();
         }
 
-        function generateTerrain() {
-            var range = 30;
-            for (var x = -range; x < range; x++) {
-                for (var z = -range; z < range; z++) {
-                    var height = Math.floor(
-                        Math.sin(x * 0.05) * 8 +
-                        Math.cos(z * 0.05) * 8 +
-                        Math.sin(x * 0.02 + z * 0.02) * 4 +
-                        50
-                    );
-                    for (var y = 0; y <= height; y++) {
-                        var blockType = 'stone';
-                        if (y === height) blockType = 'grass';
-                        else if (y > height - 3) blockType = 'dirt';
-                        addBlock(x, y, z, blockType);
-                    }
-                }
-            }
-        }
-
-        function makeMesh(type) {
-            if (templates[type]) {
-                // Share geometry/material across instances for performance
-                return new THREE.Mesh(templates[type].geometry, templates[type].material);
-            }
-            var geometry = new THREE.BoxGeometry(1, 1, 1);
-            var material = new THREE.MeshPhongMaterial({ color: COLORS[type] || 0xffffff });
-            return new THREE.Mesh(geometry, material);
-        }
-
-        function addBlock(x, y, z, type) {
-            var key = x + ',' + y + ',' + z;
-            if (blocks.has(key)) return;
-
-            var mesh = makeMesh(type);
-            mesh.position.set(x, y, z);
-            mesh.castShadow = true;
-            mesh.receiveShadow = true;
-
-            scene.add(mesh);
-            blocks.set(key, { mesh: mesh, type: type, x: x, y: y, z: z });
-        }
-
-        function removeBlock(x, y, z) {
-            var key = x + ',' + y + ',' + z;
-            var block = blocks.get(key);
-            if (block) {
-                scene.remove(block.mesh);
-                blocks.delete(key);
-            }
-        }
-
-        function raycast() {
-            var raycaster = new THREE.Raycaster();
-            raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
-            var meshes = [];
-            blocks.forEach(function (b) { meshes.push(b.mesh); });
-            var intersects = raycaster.intersectObjects(meshes);
-            return intersects.length > 0 ? intersects[0] : null;
-        }
-
-        function onKeyDown(e) { keys[e.key] = true; }
-        function onKeyUp(e) { keys[e.key] = false; }
-
+        // ===================== INPUT =====================
         function onMouseMove(e) {
             if (document.pointerLockElement !== renderer.domElement) return;
             var sensitivity = 0.003;
@@ -314,18 +497,15 @@
         }
 
         function onMouseDown(e) {
-            var intersection = raycast();
-            if (!intersection) return;
+            var dir = new THREE.Vector3();
+            camera.getWorldDirection(dir);
+            var hit = voxelRaycast(camera.position, dir, REACH);
+            if (!hit) return;
 
             if (e.button === 0) {
-                var pos = intersection.object.position;
-                removeBlock(pos.x, pos.y, pos.z);
+                breakBlock(hit.x, hit.y, hit.z);
             } else if (e.button === 2) {
-                var normal = intersection.face.normal;
-                var newX = Math.round(intersection.point.x + normal.x * 0.5);
-                var newY = Math.round(intersection.point.y + normal.y * 0.5);
-                var newZ = Math.round(intersection.point.z + normal.z * 0.5);
-                addBlock(newX, newY, newZ, selectedBlock);
+                placeBlock(hit.placeX, hit.placeY, hit.placeZ, selectedBlock);
             }
         }
 
@@ -335,6 +515,7 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
         }
 
+        // ===================== UPDATE LOOP =====================
         function update() {
             var now = Date.now();
             var deltaTime = Math.min((now - lastFrameTime) / 1000, 0.1);
@@ -345,52 +526,81 @@
                 document.getElementById('fps').textContent = Math.round(1 / deltaTime);
             }
 
-            var moveDir = new THREE.Vector3();
+            var moveForward = 0, moveRight = 0;
+            if (keys['w']) moveForward += 1;
+            if (keys['s']) moveForward -= 1;
+            if (keys['d']) moveRight += 1;
+            if (keys['a']) moveRight -= 1;
+
             var moveSpeed = 0.2;
+            if (moveForward !== 0 || moveRight !== 0) {
+                var len = Math.sqrt(moveForward * moveForward + moveRight * moveRight);
+                moveForward /= len; moveRight /= len;
 
-            if (keys['w'] || keys['W']) moveDir.z -= 1;
-            if (keys['s'] || keys['S']) moveDir.z += 1;
-            if (keys['a'] || keys['A']) moveDir.x -= 1;
-            if (keys['d'] || keys['D']) moveDir.x += 1;
-
-            if (moveDir.length() > 0) {
-                moveDir.normalize();
                 var forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
                 var right = new THREE.Vector3(1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
-                velocity.x = (forward.x * moveDir.z + right.x * moveDir.x) * moveSpeed;
-                velocity.z = (forward.z * moveDir.z + right.z * moveDir.x) * moveSpeed;
+
+                velocity.x = (forward.x * moveForward + right.x * moveRight) * moveSpeed;
+                velocity.z = (forward.z * moveForward + right.z * moveRight) * moveSpeed;
             } else {
                 velocity.x *= 0.85;
                 velocity.z *= 0.85;
             }
 
-            if ((keys[' '] || keys['Spacebar']) && isGrounded) {
+            if (keys[' '] && isGrounded) {
                 velocity.y = 0.35;
                 isGrounded = false;
             }
 
             velocity.y -= 0.02;
-            velocity.y = Math.max(velocity.y, -0.5);
+            velocity.y = Math.max(velocity.y, -0.6);
 
-            camera.position.add(velocity);
+            // Move with simple axis-separated collision
+            var pos = camera.position;
+            var eyeToFeet = 1.6;
 
-            var playerY = camera.position.y - 1.6;
-            var blockKey = Math.round(camera.position.x) + ',' + Math.floor(playerY) + ',' + Math.round(camera.position.z);
-            var groundBlock = blocks.get(blockKey);
-
-            isGrounded = !!groundBlock;
-            if (groundBlock) {
-                velocity.y = 0;
-                camera.position.y = Math.max(camera.position.y, groundBlock.y + 2.6);
+            // X axis
+            var nx = pos.x + velocity.x;
+            if (!isSolid(Math.floor(nx), Math.floor(pos.y - eyeToFeet), Math.floor(pos.z)) &&
+                !isSolid(Math.floor(nx), Math.floor(pos.y - eyeToFeet + 1), Math.floor(pos.z))) {
+                pos.x = nx;
+            } else {
+                velocity.x = 0;
             }
 
-            document.getElementById('posX').textContent = Math.round(camera.position.x);
-            document.getElementById('posY').textContent = Math.round(camera.position.y);
-            document.getElementById('posZ').textContent = Math.round(camera.position.z);
+            // Z axis
+            var nz = pos.z + velocity.z;
+            if (!isSolid(Math.floor(pos.x), Math.floor(pos.y - eyeToFeet), Math.floor(nz)) &&
+                !isSolid(Math.floor(pos.x), Math.floor(pos.y - eyeToFeet + 1), Math.floor(nz))) {
+                pos.z = nz;
+            } else {
+                velocity.z = 0;
+            }
+
+            // Y axis
+            var ny = pos.y + velocity.y;
+            var feetY = Math.floor(ny - eyeToFeet);
+            if (velocity.y <= 0 && isSolid(Math.floor(pos.x), feetY, Math.floor(pos.z))) {
+                isGrounded = true;
+                velocity.y = 0;
+                pos.y = feetY + 1 + eyeToFeet;
+            } else if (velocity.y > 0 && isSolid(Math.floor(pos.x), Math.floor(ny - eyeToFeet + 2), Math.floor(pos.z))) {
+                velocity.y = 0;
+                pos.y = ny;
+            } else {
+                pos.y = ny;
+                isGrounded = false;
+            }
+
+            document.getElementById('posX').textContent = Math.round(pos.x);
+            document.getElementById('posY').textContent = Math.round(pos.y);
+            document.getElementById('posZ').textContent = Math.round(pos.z);
 
             camera.rotation.order = 'YXZ';
             camera.rotation.y = yaw;
             camera.rotation.x = pitch;
+
+            updateChunksAroundPlayer();
         }
 
         function animate() {
